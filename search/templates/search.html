@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <title>{{ query }} - Antique Seeker</title>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center my-4">Antique Seeker</h1>
+        <form class="mb-4" method="get" action="{% url 'search' %}">
+            {% csrf_token %}
+            <div class="input-group">
+                <input type="text" class="form-control" name="query" value="{{ query }}" aria-label="Search">
+                <div class="input-group-append">
+                    <button class="btn btn-outline-secondary" type="submit">Go</button>
+                </div>
+            </div>
+        </form>
+        <div class="mb-4">
+            {% if empty %}
+            <div class="text-center">
+                <h2 class="display-5">{{ query }} tidak ditemukan</h2>
+            </div>
+            {% else %}
+            {% for doc, content in result %}
+            <div class="mb-4">
+                <h2>{{ doc }}</h2>
+                <p>{{ content|truncatewords:50 }}</p>
+            </div>
+            {% endfor %}
+            {% endif %}
+        </div>
+        <nav aria-label="Page navigation example">
+            <ul class="pagination justify-content-center">
+                {% for page in pages %}
+                {% if page == curr_page %}
+                <li class="page-item"><span class="page-link" tabindex="-1" aria-disabled="true">{{ page|add:1 }}</span></li>
+                {% else %}
+                <li class="page-item">
+                    <form method="get" action="{% url 'search' %}">
+                        <input type="hidden" name="query" value="{{ query }}">
+                        <button type="submit" name="page" value="{{ page }}" class="page-link">
+                            {{ page|add:1 }}
+                        </button>
+                    </form>
+                </li>
+                {% endif %}
+                {% endfor %}
+            </ul>
+        </nav>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script><script src="https://stackpath.bootstrapcdn.com/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
