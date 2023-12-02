@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect
-from django.views.decorators.csrf import csrf_exempt
+from django.contrib import messages
 from .bsbi import BSBIIndex
 import ir_datasets
 
@@ -24,16 +24,40 @@ def search(request):
 
     docs = list(BSBI_instance.retrieve_bm25(query, k=100))
 
+    if len(docs) == 0:
+        messages.error(request, f"Hasil {query} tidak ditemukan", extra_tags="danger")
+        return redirect('home')
+
+    if start > len(docs):
+        start = 0
+        end = 10
+
     for i, (score, doc) in enumerate(docs):
         if start <= i < end:
             content = docstore.get(doc).text
-            result.append((doc.split('_')[0], content))
+            result.append((doc, doc.split('_')[0], content))
 
     response = {
         'query': query,
         'result': result,
         'pages': range(((len(docs) - 1) // 10) + 1),
-        'empty': len(docs) < (start + 1)
+        'curr_page': page,
     }
 
     return render(request, 'search.html', response)
+
+
+def detail(request, doc_id):
+    docstore = ir_datasets.load('antique').docs_store()
+
+    try:
+        doc = docstore.get(doc_id)
+        response = {
+            'title': doc.doc_id.split('_')[0],
+            'text': doc.text
+        }
+
+        return render(request, 'detail.html', response)
+    except KeyError:
+        messages.error(request, f"Dokumen {doc_id} tidak ditemukan", extra_tags="danger")
+        return redirect('home')

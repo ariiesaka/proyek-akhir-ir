@@ -19,18 +19,16 @@
             </div>
         </form>
         <div class="mb-4">
-            {% if empty %}
-            <div class="text-center">
-                <h2 class="display-5">{{ query }} tidak ditemukan</h2>
-            </div>
-            {% else %}
-            {% for doc, content in result %}
+            {% for doc_id, title, content in result %}
             <div class="mb-4">
-                <h2>{{ doc }}</h2>
+                <h2>
+                    <a href="{% url 'detail' doc_id %}" class="text-decoration-none text-dark">
+                        {{ title }}
+                    </a>
+                </h2>
                 <p>{{ content|truncatewords:50 }}</p>
             </div>
             {% endfor %}
-            {% endif %}
         </div>
         <nav aria-label="Page navigation example">
             <ul class="pagination justify-content-center">
