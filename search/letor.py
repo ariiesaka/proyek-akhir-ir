@@ -9,6 +9,9 @@ import lightgbm
 
 class Letor:
     def __init__(self) -> None:
+
+        # copy semua file di https://drive.google.com/drive/folders/17VarHWduvxCHS2k-TgAXLCvL-nCcLpE6?hl=id
+        # ke folder ./letor-model
         self.encoder = FastText.load("letor-model/fasttext_model")
         self.model = lightgbm.Booster(model_file='letor-model/letor_fasttext12.txt')
         self.stemmer = MPStemmer(check_nonstandard=False)
