@@ -1,3 +1,5 @@
+import os.path
+
 import pandas as pd
 import numpy as np
 from scipy.spatial.distance import cosine
@@ -12,8 +14,8 @@ class Letor:
 
         # copy semua file di https://drive.google.com/drive/folders/17VarHWduvxCHS2k-TgAXLCvL-nCcLpE6?hl=id
         # ke folder ./letor-model
-        self.encoder = FastText.load("letor-model/fasttext_model")
-        self.model = lightgbm.Booster(model_file='letor-model/letor_fasttext12.txt')
+        self.encoder = FastText.load(os.path.join('search', 'letor-model', 'fasttext_model'))
+        self.model = lightgbm.Booster(model_file=os.path.join('search', 'letor-model', 'letor_fasttext12.txt'))
         self.stemmer = MPStemmer(check_nonstandard=False)
         self.remover = StopWordRemoverFactory().create_stop_word_remover()
 
@@ -55,7 +57,8 @@ class Letor:
         docs = []
         bm25s = []
         for doc_score, doc_id in doc_score_names:
-            with open(doc_id, 'r', encoding='utf8') as doc_file:
+            path_parts = doc_id.split(os.sep)
+            with open(os.path.join('search', 'collections', path_parts[-2], path_parts[-1]), 'r', encoding='utf8') as doc_file:
                 doc = doc_file.read()
                 docs.append(doc)
                 bm25s.append(doc_score)
@@ -64,7 +67,7 @@ class Letor:
         df["query"] = df.document.apply(lambda x:query)
         X = self.generate_features(df)
         letor_scores = self.model.predict(X)
-        did_scores = [(letor_score, did) for letor_score, (_, did) in zip(letor_scores, doc_score_names)]
+        did_scores = [(letor_score, did, content) for letor_score, (_, did), content in zip(letor_scores, doc_score_names, docs)]
         did_scores.sort(key=lambda did_score: did_score[0], reverse=True)
         return did_scores
 

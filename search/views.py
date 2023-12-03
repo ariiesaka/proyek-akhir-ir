@@ -1,8 +1,9 @@
+import os.path
+
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from .bsbi import BSBIIndex
-import ir_datasets
-
+from .letor import Letor
 
 def home(request):
     return render(request, 'index.html')
@@ -15,14 +16,14 @@ def search(request):
         return redirect('home')
 
     page = int(request.GET.get('page', 0))
-    docstore = ir_datasets.load('antique').docs_store()
 
     result = []
     start = page * 10
     end = start + 10
     BSBI_instance = BSBIIndex()
+    letor_instance = Letor()
 
-    docs = list(BSBI_instance.retrieve_bm25(query, k=100))
+    docs = list(letor_instance.predict(query, BSBI_instance.retrieve_bm25(query, k=100)))
 
     if len(docs) == 0:
         messages.error(request, f"Hasil {query} tidak ditemukan", extra_tags="danger")
@@ -32,10 +33,9 @@ def search(request):
         start = 0
         end = 10
 
-    for i, (score, doc) in enumerate(docs):
+    for i, (score, doc, content) in enumerate(docs):
         if start <= i < end:
-            content = docstore.get(doc).text
-            result.append((doc, doc.split('_')[0], content))
+            result.append((doc, os.path.basename(doc)[:-4], content))
 
     response = {
         'query': query,
@@ -48,16 +48,15 @@ def search(request):
 
 
 def detail(request, doc_id):
-    docstore = ir_datasets.load('antique').docs_store()
-
     try:
-        doc = docstore.get(doc_id)
-        response = {
-            'title': doc.doc_id.split('_')[0],
-            'text': doc.text
-        }
+        path_parts = doc_id.split(os.sep)
+        with open(os.path.join('search', 'collections', path_parts[-2], path_parts[-1]), 'r') as f:
+            response = {
+                'title': path_parts[-1],
+                'text': f.read()
+            }
 
         return render(request, 'detail.html', response)
-    except KeyError:
+    except FileNotFoundError:
         messages.error(request, f"Dokumen {doc_id} tidak ditemukan", extra_tags="danger")
         return redirect('home')

@@ -1,109 +1,53 @@
 import os
 import pickle
-import contextlib
-import heapq
 import math
-import ir_datasets
-import nltk
+import re
 
 from .index import InvertedIndexReader
 from .compression import VBEPostings
-from tqdm import tqdm
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
-from nltk.stem import PorterStemmer
+from mpstemmer import MPStemmer
+from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFactory
 
 from operator import itemgetter
 
-nltk.download('punkt')
-nltk.download('stopwords')
-
 
 class BSBIIndex:
-    """
-    Attributes
-    ----------
-    term_id_map(IdMap): Untuk mapping terms ke termIDs
-    doc_id_map(IdMap): Untuk mapping relative paths dari dokumen (misal,
-                    /collection/0/gamma.txt) to docIDs
-    data_dir(str): Path ke data
-    output_dir(str): Path ke output index files
-    postings_encoding: Lihat di compression.py, kandidatnya adalah StandardPostings,
-                    VBEPostings, dsb.
-    index_name(str): Nama dari file yang berisi inverted index
-    """
-
-    def __init__(self, output_dir="index", postings_encoding=VBEPostings, index_name="main_index"):
+    def __init__(self, data_dir='collections', output_dir='index', postings_encoding=VBEPostings, index_name="main_index"):
         self.term_id_map = dict()
-        self.id_term_map = []
+        self.term_counter = 0
         self.doc_id_map = dict()
-        self.id_doc_map = []
+        self.doc_counter = 0
+        self.data_dir = data_dir
         self.output_dir = output_dir
         self.index_name = index_name
         self.postings_encoding = postings_encoding
-        self.stemmer = PorterStemmer()
-        self.stop_words = set(stopwords.words('english'))
+
+        self.stemmer = MPStemmer(check_nonstandard=False)
+        self.remover = StopWordRemoverFactory().create_stop_word_remover()
 
     def load(self):
         """Memuat doc_id_map and term_id_map dari output directory"""
 
         with open(os.path.join('search', self.output_dir, 'terms.dict'), 'rb') as f:
-            self.term_id_map, self.id_term_map = pickle.load(f)
+            self.term_id_map = pickle.load(f)
         with open(os.path.join('search', self.output_dir, 'docs.dict'), 'rb') as f:
-            self.doc_id_map, self.id_doc_map = pickle.load(f)
+            self.doc_id_map = pickle.load(f)
 
     def pre_processing_text(self, content):
         """
         Melakukan preprocessing pada text, yakni stemming dan removing stopwords
         """
+        # https://github.com/ariaghora/mpstemmer/tree/master/mpstemmer
 
-        tokens = word_tokenize(content)
-        tokens = [token for token in tokens if token not in self.stop_words]
-        tokens = [self.stemmer.stem(token) for token in tokens]
-
-        return tokens
+        stemmed = self.stemmer.stem(content)
+        return self.remover.remove(stemmed)
 
     def retrieve_tfidf(self, query, k=10):
-        """
-        Melakukan Ranked Retrieval dengan skema TaaT (Term-at-a-Time).
-        Method akan mengembalikan top-K retrieval results.
-
-        w(t, D) = (1 + log tf(t, D))       jika tf(t, D) > 0
-                = 0                        jika sebaliknya
-
-        w(t, Q) = IDF = log (N / df(t))
-
-        Score = untuk setiap term di query, akumulasikan w(t, Q) * w(t, D).
-                (tidak perlu dinormalisasi dengan panjang dokumen)
-
-        catatan:
-            1. informasi DF(t) ada di dictionary postings_dict pada merged index
-            2. informasi TF(t, D) ada di tf_li
-            3. informasi N bisa didapat dari doc_length pada merged index, len(doc_length)
-
-        Parameters
-        ----------
-        query: str
-            Query tokens yang dipisahkan oleh spasi
-
-            contoh: Query "universitas indonesia depok" artinya ada
-            tiga terms: universitas, indonesia, dan depok
-
-        Result
-        ------
-        List[(int, str)]
-            List of tuple: elemen pertama adalah score similarity, dan yang
-            kedua adalah nama dokumen.
-            Daftar Top-K dokumen terurut mengecil BERDASARKAN SKOR.
-
-        JANGAN LEMPAR ERROR/EXCEPTION untuk terms yang TIDAK ADA di collection.
-
-        """
-        # TODO
         self.load()
         scores = {}
 
-        query_tokens = self.pre_processing_text(query)
+        query_tokens = re.findall(r'\w+', query)
+        query_tokens = [self.pre_processing_text(token) for token in query_tokens]
         with InvertedIndexReader(self.index_name, self.postings_encoding, self.output_dir) as indices:
             postings_dict = indices.postings_dict
             N = len(indices.doc_length)
@@ -128,34 +72,14 @@ class BSBIIndex:
                     scores[doc_id] += score
 
         sorted_k = sorted(scores.items(), key=itemgetter(1), reverse=True)[:k]
-        return [(score, self.id_doc_map[doc_id]) for doc_id, score in sorted_k]
+        return [(score, self.doc_id_map[doc_id]) for doc_id, score in sorted_k]
 
     def retrieve_bm25(self, query, k=10, k1=1.2, b=0.75):
-        """
-        Melakukan Ranked Retrieval dengan skema scoring BM25 dan framework TaaT (Term-at-a-Time).
-        Method akan mengembalikan top-K retrieval results.
-
-        Parameters
-        ----------
-        query: str
-            Query tokens yang dipisahkan oleh spasi
-
-            contoh: Query "universitas indonesia depok" artinya ada
-            tiga terms: universitas, indonesia, dan depok
-
-        Result
-        ------
-        List[(int, str)]
-            List of tuple: elemen pertama adalah score similarity, dan yang
-            kedua adalah nama dokumen.
-            Daftar Top-K dokumen terurut mengecil BERDASARKAN SKOR.
-
-        """
-        # TODO
         self.load()
         scores = {}
 
-        query_tokens = self.pre_processing_text(query)
+        query_tokens = re.findall(r'\w+', query)
+        query_tokens = [self.pre_processing_text(token) for token in query_tokens]
 
         with InvertedIndexReader(self.index_name, self.postings_encoding, os.path.join('search', self.output_dir)) as indices:
             postings_dict = indices.postings_dict
@@ -183,4 +107,4 @@ class BSBIIndex:
                     scores[doc_id] += score
 
         sorted_k = sorted(scores.items(), key=itemgetter(1), reverse=True)[:k]
-        return [(score, self.id_doc_map[doc_id]) for doc_id, score in sorted_k]
+        return [(score, self.doc_id_map[doc_id]) for doc_id, score in sorted_k]
