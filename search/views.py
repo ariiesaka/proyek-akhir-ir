@@ -5,6 +5,10 @@ from django.contrib import messages
 from .bsbi import BSBIIndex
 from .letor import Letor
 
+BSBI_instance = BSBIIndex()
+letor_instance = Letor()
+
+
 def home(request):
     return render(request, 'index.html')
 
@@ -20,8 +24,6 @@ def search(request):
     result = []
     start = page * 10
     end = start + 10
-    BSBI_instance = BSBIIndex()
-    letor_instance = Letor()
 
     docs = list(letor_instance.predict(query, BSBI_instance.retrieve_bm25(query, k=100)))
 

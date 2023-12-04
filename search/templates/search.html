@@ -10,7 +10,6 @@
     <div class="container">
         <h1 class="text-center my-4">Antique Seeker</h1>
         <form class="mb-4" method="get" action="{% url 'search' %}">
-            {% csrf_token %}
             <div class="input-group">
                 <input type="text" class="form-control" name="query" value="{{ query }}" aria-label="Search">
                 <div class="input-group-append">
