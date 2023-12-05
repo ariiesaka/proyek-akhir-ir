@@ -8,6 +8,7 @@ from mpstemmer import MPStemmer
 from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFactory
 import re
 import lightgbm
+from .constants import OS_SEP_WIN
 
 class Letor:
     def __init__(self) -> None:
@@ -57,7 +58,7 @@ class Letor:
         docs = []
         bm25s = []
         for doc_score, doc_id in doc_score_names:
-            path_parts = doc_id.split(os.sep)
+            path_parts = doc_id.split(OS_SEP_WIN)
             with open(os.path.join('search', 'collections', path_parts[-2], path_parts[-1]), 'r', encoding='utf8') as doc_file:
                 doc = doc_file.read()
                 docs.append(doc)
