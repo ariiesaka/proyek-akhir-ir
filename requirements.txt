@@ -2,7 +2,6 @@ Django==3.2.8
 numpy==1.23.5
 pandas==1.5.3
 scipy
-ir_datasets
 nltk
 gensim
 lightgbm
