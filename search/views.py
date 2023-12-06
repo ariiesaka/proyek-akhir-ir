@@ -4,6 +4,7 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from .bsbi import BSBIIndex
 from .letor import Letor
+from .constants import OS_SEP_WIN
 
 BSBI_instance = BSBIIndex()
 letor_instance = Letor()
@@ -51,7 +52,7 @@ def search(request):
 
 def detail(request, doc_id):
     try:
-        path_parts = doc_id.split(os.sep)
+        path_parts = doc_id.split(OS_SEP_WIN)
         with open(os.path.join('search', 'collections', path_parts[-2], path_parts[-1]), 'r') as f:
             response = {
                 'title': path_parts[-1],
