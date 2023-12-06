@@ -9,3 +9,4 @@ PySastrawi
 mpstemmer @ git+https://github.com/ariaghora/mpstemmer.git
 python-Levenshtein
 POT
+gunicorn
