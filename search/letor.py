@@ -23,6 +23,8 @@ class Letor:
     def download_file_letor_models(self):
 
         # semua model ada di folder https://drive.google.com/drive/folders/17VarHWduvxCHS2k-TgAXLCvL-nCcLpE6?hl=id
+        if not os.path.lexists(os.path.join('search', 'letor-model')):
+            os.mkdir(os.path.join('search', 'letor-model'))
         letor_model_drive_ids = {
             os.path.join('search', 'letor-model', 'fasttext_model') : '18AyW1yLly6QDxxKCorDu23NPCS5Tgh7e',
             os.path.join('search', 'letor-model', 'fasttext_model.wv.vectors_ngrams.npy') : '1UAVvp8pC4G7b24RQv0bBz42feZyiReDw',
