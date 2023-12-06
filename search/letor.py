@@ -8,17 +8,32 @@ from mpstemmer import MPStemmer
 from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFactory
 import re
 import lightgbm
+import gdown
 from .constants import OS_SEP_WIN
 
 class Letor:
     def __init__(self) -> None:
 
-        # copy semua file di https://drive.google.com/drive/folders/17VarHWduvxCHS2k-TgAXLCvL-nCcLpE6?hl=id
-        # ke folder ./letor-model
+        self.download_file_letor_models()
         self.encoder = FastText.load(os.path.join('search', 'letor-model', 'fasttext_model'))
         self.model = lightgbm.Booster(model_file=os.path.join('search', 'letor-model', 'letor_fasttext12.txt'))
         self.stemmer = MPStemmer(check_nonstandard=False)
         self.remover = StopWordRemoverFactory().create_stop_word_remover()
+
+    def download_file_letor_models(self):
+
+        # semua model ada di folder https://drive.google.com/drive/folders/17VarHWduvxCHS2k-TgAXLCvL-nCcLpE6?hl=id
+        letor_model_drive_ids = {
+            os.path.join('search', 'letor-model', 'fasttext_model') : '18AyW1yLly6QDxxKCorDu23NPCS5Tgh7e',
+            os.path.join('search', 'letor-model', 'fasttext_model.wv.vectors_ngrams.npy') : '1UAVvp8pC4G7b24RQv0bBz42feZyiReDw',
+            os.path.join('search', 'letor-model', 'letor_fasttext12.txt') : '1_QNXImbXbULJXD-nxwppeI96ew_b71dy'
+        }
+
+        for model_path, drive_id in letor_model_drive_ids.items():
+            print(f"Downloading {model_path}")
+            if not os.path.lexists(model_path):
+                gdown.download(id=drive_id, output=model_path, quiet=False)
+            print(f"Finish downloading {model_path}")
 
     def get_cosine(self, doc_embed, query_embeds):
         result = 0
