@@ -38,7 +38,7 @@ def search(request):
 
     for i, (score, doc, content) in enumerate(docs):
         if start <= i < end:
-            result.append((doc, os.path.basename(doc)[:-4], content))
+            result.append((doc, doc.split(OS_SEP_WIN)[-1][:-4], content))
 
     response = {
         'query': query,
