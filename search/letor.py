@@ -27,14 +27,14 @@ class Letor:
         return result/len(query_embeds)
 
     def jaccard(self, query, doc):
-        q_set = set(self.preprocess_text(query.lower()))
-        d_set = set(self.preprocess_text(doc.lower()))
+        q_set = set(self.preprocess_text(query))
+        d_set = set(self.preprocess_text(doc))
         return len(q_set & d_set) / len(q_set | d_set)
 
     def encode(self, texrOrTokens, merged=False):
         tokens = texrOrTokens
         if type(texrOrTokens) == str:
-            tokens = self.preprocess_text(texrOrTokens.lower())
+            tokens = self.preprocess_text(texrOrTokens)
         if merged:
             mean_vector = self.encoder.wv.get_mean_vector(tokens) 
             return mean_vector/np.linalg.norm(mean_vector)
@@ -65,7 +65,8 @@ class Letor:
                 bm25s.append(doc_score)
         
         df = pd.DataFrame({"document": docs, "bm25": bm25s})
-        df["query"] = df.document.apply(lambda x:query)
+        df["query"] = df.document.apply(lambda x:query.lower())
+        df["document"] = df.document.apply(lambda doc:doc.lower())
         X = self.generate_features(df)
         letor_scores = self.model.predict(X)
         did_scores = [(letor_score, did, content) for letor_score, (_, did), content in zip(letor_scores, doc_score_names, docs)]
@@ -73,19 +74,18 @@ class Letor:
         return did_scores
 
     def generate_features(self, df:pd.DataFrame):
-        new_df = df[["query", "document", "bm25"]].copy()
-        new_df["query_embed"] = new_df["query"].apply(lambda query: self.encode(query))
-        new_df["doc_embed"] = new_df["document"].apply(lambda doc: self.encode(doc, merged=True))
-        new_df["cosine"] = new_df.apply(lambda row: self.get_cosine(row["doc_embed"], row["query_embed"]), axis=1)
-        new_df["jaccard"] = new_df.apply(lambda row: self.jaccard(row["query"], row["document"]), axis=1)
-        new_df["exact_match"] = new_df.apply(lambda row: 1 if row["query"].lower() in row["document"].lower() else 0, axis=1)
-        new_df["wm_dist"] = new_df.apply(lambda row: self.encoder.wv.wmdistance(row["query"].lower(), row["document"].lower()), axis=1)
-        new_df["doc_len"] = new_df["document"].apply(len)
-        new_df["query_len"] = new_df["query"].apply(len)
-        new_df["query_embed"] = new_df["query"].apply(lambda query: self.encode(query, merged=True))
+        df["query_embed"] = df["query"].apply(self.encode)
+        df["doc_embed"] = df["document"].apply(lambda doc: self.encode(doc, merged=True))
+        df["cosine"] = df.apply(lambda row: self.get_cosine(row["doc_embed"], row["query_embed"]), axis=1)
+        df["jaccard"] = df.apply(lambda row: self.jaccard(row["query"], row["document"]), axis=1)
+        df["exact_match"] = df.apply(lambda row: 1 if row["query"] in row["document"] else 0, axis=1)
+        df["wm_dist"] = df.apply(lambda row: self.encoder.wv.wmdistance(row["query"], row["document"]), axis=1)
+        df["doc_len"] = df["document"].apply(len)
+        df["query_len"] = df["query"].apply(len)
+        df["query_embed"] = df["query"].apply(lambda query: self.encode(query, merged=True))
 
         return np.concatenate((
-            np.stack(new_df["query_embed"].to_numpy(), axis=0),
-            np.stack(new_df["doc_embed"].to_numpy(), axis=0),
-            new_df[['bm25', 'cosine', 'jaccard', 'exact_match', 'wm_dist', 'doc_len', 'query_len']].to_numpy()
+            np.stack(df["query_embed"].to_numpy(), axis=0),
+            np.stack(df["doc_embed"].to_numpy(), axis=0),
+            df[['bm25', 'cosine', 'jaccard', 'exact_match', 'wm_dist', 'doc_len', 'query_len']].to_numpy()
         ), axis=1)
